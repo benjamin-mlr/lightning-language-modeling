@@ -178,7 +178,7 @@ def cli_main():
     # TODO: 
 
     # add evaluation : report loss 
-    # add validation loop
+    # add bert score + validation loop should run 
     # test overfit tiny dataset
     # same with phonemes
 
