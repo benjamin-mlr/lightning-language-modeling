@@ -1,3 +1,8 @@
+"""
+python language_model.py --model_name_or_path xlm-roberta-base --train_file $STORE/data/oscar/en_oscar_demo-train.txt --validation_file $STORE/data/oscar/en_oscar-test.txt --line_by_line --max_steps 1000  --gpus 1 --output_dir $SCRATCH/ --profiler simple
+"""
+
+
 from argparse import ArgumentParser
 import pytorch_lightning as pl
 from transformers import (
@@ -7,6 +12,13 @@ from transformers import (
 )
 from transformers.optimization import AdamW
 from data import LMDataModule
+
+from uuid import uuid4
+import torch
+
+import logging
+
+from pathlib import Path
 
 
 class LMModel(pl.LightningModule):
@@ -52,7 +64,6 @@ class LMModel(pl.LightningModule):
 
 
 def cli_main():
-    pl.seed_everything(1234)
 
     # ------------
     # args
@@ -60,6 +71,8 @@ def cli_main():
     parser = ArgumentParser()
     parser.add_argument('--model_name_or_path', type=str,
                         default="distilbert-base-cased")
+    parser.add_argument('--output_dir', type=str, default="./tmp")
+    parser.add_argument('--run_label', type=str, default="test")
     parser.add_argument('--train_file', type=str,
                         default="data/wikitext-2/wiki.train.small.raw")
     parser.add_argument('--validation_file', type=str,
@@ -73,9 +86,37 @@ def cli_main():
     parser.add_argument('--train_batch_size', type=int, default=4)
     parser.add_argument('--val_batch_size', type=int, default=8)
     parser.add_argument('--dataloader_num_workers', type=int, default=4)
+    
+
     parser = pl.Trainer.add_argparse_args(parser)
     parser = LMModel.add_model_specific_args(parser)
     args = parser.parse_args()
+
+    args.output_dir = Path(args.output_dir)
+
+    # id (could add git id in log)
+    run_id = str(uuid4())[:4]
+    args.default_root_dir = args.output_dir / f"{run_id}-{args.run_label}-run"
+    (args.default_root_dir).mkdir(exist_ok=False)
+
+    # logger
+    logger = logging.getLogger()
+    console = logging.StreamHandler()
+
+    format_str = '%(asctime)s\t%(levelname)s -- %(processName)s %(filename)s:%(lineno)s -- %(message)s'
+    console.setFormatter(logging.Formatter(format_str))
+
+    log_dir = args.default_root_dir/f'{run_id}.log'
+    fh = logging.FileHandler(str(log_dir), mode="a")
+    print(f"Logging and checkpointing in {args.default_root_dir.parent} {log_dir.name}")
+    fh.setFormatter(logging.Formatter(format_str))
+    fh.setLevel(logging.INFO)
+
+    logger.addHandler(console)
+    logger.addHandler(fh)
+    logger.setLevel(logging.INFO)
+
+    pl.seed_everything(1234)
 
     # ------------
     # data
@@ -98,6 +139,7 @@ def cli_main():
     # ------------
     # model
     # ------------
+    logger.info("Model definition")
     lmmodel = LMModel(
         model_name_or_path=args.model_name_or_path,
         learning_rate=args.learning_rate,
@@ -110,7 +152,47 @@ def cli_main():
     # training
     # ------------
     trainer = pl.Trainer.from_argparse_args(args)
+
+    all_args = vars(args)
+
+    logger.info(f"All parameters {all_args}")
+    if not torch.cuda.is_available():
+        logger.warning("Cuda not available")
+    else:
+        logger.info("Cuda available")
+        try:
+            assert args.gpus > 0, ""
+            logger.info("Run on gpu ")
+            logger.warning(f"'Available devices  {torch.cuda.device_count()}")
+        except:
+            logger.warning(f"'--gpus was not set so will run on cpu")
+
+    logger.info("Start fitting...")
     trainer.fit(lmmodel, data_module)
+    logger.info("Fitting done")
+
+    logger.info(f"DONE: all outputs available in {args.default_root_dir}")
+
+    logging.shutdown()
+
+    # TODO: 
+
+    # add evaluation : report loss 
+    # add validation loop
+    # test overfit tiny dataset
+    # same with phonemes
+
+    # PRIORITY: not loose your account and ask for renewale = 
+    # Jean Zay: request several gpus= do distributed gpus with pytorch lightninh 
+    #           request several nodes: do distributed nodes with pytorch lifgtning 
+    #           ask all tips Thomas 
+
+    # OK
+    # plug tensorboard (see official tensoorbard: tips and tricks does not work): proxy en local 
+    # logging: --> log all in a single directory (all pytorch lightning/ log / tensorboard) , can you log in it all print out
+    # checkpoint to STORAGE DIRECTORY : with naming id of checkpoint 
+    # print profiling
+
 
 
 if __name__ == '__main__':

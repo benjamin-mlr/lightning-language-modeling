@@ -1,5 +1,7 @@
 transformers==3.5.1
-pytorch-lightning==1.0.6
+pytorch-lightning==1.1
+# previous version of torch needed
+torch==1.7.0
 #for transformers/examples
 tensorboard
 scikit-learn
