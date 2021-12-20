@@ -1,5 +1,21 @@
 """
-python language_model.py --model_name_or_path xlm-roberta-base --train_file $STORE/data/oscar/en_oscar_demo-train.txt --validation_file $STORE/data/oscar/en_oscar-test.txt --line_by_line --max_steps 1000  --gpus 1 --output_dir $SCRATCH/ --profiler simple
+
+
+python language_model.py \
+--model_name_or_path xlm-roberta-base \
+--train_file $STORE/data/oscar/en_oscar_demo-train.txt \
+--validation_file $STORE/data/oscar/en_oscar-test.txt \
+--line_by_line \
+--max_steps 1000  \
+--gpus 1 \
+--output_dir $SCRATCH/ \
+--profiler simple \
+--train_batch_size 16 \
+--val_batch_size 20
+
+
+This will store outputs (checkpoint, logs, tensorboard logs) in output_dir
+
 """
 
 
@@ -28,9 +44,10 @@ class LMModel(pl.LightningModule):
         self.save_hyperparameters()
 
         config = AutoConfig.from_pretrained(
-            model_name_or_path, return_dict=True)
+            model_name_or_path, return_dict=True, local_files_only=True)
         self.model = AutoModelForMaskedLM.from_pretrained(
             model_name_or_path,
+            local_files_only=True,
             config=config)
 
     def forward(self, x):
@@ -167,7 +184,7 @@ def cli_main():
         except:
             logger.warning(f"'--gpus was not set so will run on cpu")
 
-    logger.info("Start fitting...")
+    logger.info(f"Start fitting... (all outputs in {args.default_root_dir})")
     trainer.fit(lmmodel, data_module)
     logger.info("Fitting done")
 
@@ -175,19 +192,19 @@ def cli_main():
 
     logging.shutdown()
 
-    # TODO: 
 
-    # add evaluation : report loss 
-    # add bert score + validation loop should run 
-    # test overfit tiny dataset
-    # same with phonemes
 
     # PRIORITY: not loose your account and ask for renewale = 
-    # Jean Zay: request several gpus= do distributed gpus with pytorch lightninh 
-    #           request several nodes: do distributed nodes with pytorch lifgtning 
-    #           ask all tips Thomas 
+    # Jean Zay: request several gpus= do distributed gpus with pytorch lightninh
+    # TRY 4 GPUS , 8 GPUS
+    # 1- FIT LANGUAGE MODEL FULLY use 4 gpu use fully : ?
+    # 1- RELOAD : plug MLM in Sequence labeller and fit NER/POS tagger should be near camembert paper results
+    # 2-
+    #
+    # same with phonemes
+    #
 
-    # OK
+    # SIDE NOTES:
     # plug tensorboard (see official tensoorbard: tips and tricks does not work): proxy en local 
     # logging: --> log all in a single directory (all pytorch lightning/ log / tensorboard) , can you log in it all print out
     # checkpoint to STORAGE DIRECTORY : with naming id of checkpoint 
@@ -196,4 +213,5 @@ def cli_main():
 
 
 if __name__ == '__main__':
+
     cli_main()

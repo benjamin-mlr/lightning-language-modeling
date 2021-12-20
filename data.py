@@ -28,7 +28,7 @@ class LMDataModule(pl.LightningDataModule):
         self.dataloader_num_workers = dataloader_num_workers
 
     def setup(self, stage):
-        tokenizer = AutoTokenizer.from_pretrained(self.model_name_or_path)
+        tokenizer = AutoTokenizer.from_pretrained(self.model_name_or_path, local_files_only=True)
         extension = self.train_file.split(".")[-1]
         if extension in ("txt", "raw"):
             extension = "text"
