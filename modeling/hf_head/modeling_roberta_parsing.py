@@ -294,7 +294,6 @@ class RobertaForTokenClassification(RobertaPreTrainedModel):
             hidden_states=outputs.hidden_states,
             attentions=outputs.attentions,
         )
-
 ###############################
 #
 #
